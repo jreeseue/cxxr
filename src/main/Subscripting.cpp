@@ -20,7 +20,11 @@
  */
 
 #include <set>
+#if defined(__APPLE__) && defined(__MACH__)
+#include <unordered_map>
+#else
 #include <tr1/unordered_map>
+#endif
 #include "CXXR/RAllocStack.h"
 #include "CXXR/RealVector.h"
 #include "CXXR/Subscripting.hpp"
@@ -240,7 +244,11 @@ void Subscripting::Indices::initialize(const StringVector* raw_indices,
 				       const StringVector* range_names)
 {
     const std::size_t rawsize = raw_indices->size();
+#if defined(__APPLE__) && defined(__MACH__)
+    typedef std::unordered_map<GCRoot<String>, std::size_t> Nmap;
+#else
     typedef std::tr1::unordered_map<GCRoot<String>, std::size_t> Nmap;
+#endif
     Nmap names_map;
     m_max_index = (range_names ? 0 : range_size);
     resize(rawsize);
@@ -318,14 +326,14 @@ Subscripting::canonicalize(const RObject* raw_indices, std::size_t range_size,
 	    std::size_t index = indices[i];
 	    (*canvec)[i] = (index == 0 ? NA<double>() : double(index));
 	}
-	return std::make_pair(canvec, maxindex);
+	return std::make_pair(canvec.get(), maxindex);
     } else {
 	GCStackRoot<IntVector> canvec(CXXR_NEW(IntVector(indices.size())));
 	for (std::size_t i = 0; i < indices.size(); ++i) {
 	    std::size_t index = indices[i];
 	    (*canvec)[i] = (index == 0 ? NA<int>() : int(index));
 	}
-	return std::make_pair(canvec, maxindex);
+	return std::make_pair(canvec.get(), maxindex);
     }
 }
 	
