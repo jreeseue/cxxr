@@ -348,7 +348,7 @@ AM_CONDITIONAL(BUILD_LTO, [test "x${want_lto}" != xno])
 ### CXXR Requires Boost of at least a given version,
 ### including the boost::regex and boost::serialization libraries
 
-AX_BOOST_BASE([1.53.0],
+AX_BOOST_BASE([1.48.0],
 	      [],
               [AC_MSG_ERROR([CXXR requires boost, which was not found.])]
              )
@@ -483,9 +483,9 @@ AC_ARG_WITH([ICU],
 ## Byte-compilation of packages.
 AC_ARG_ENABLE([byte-compiled-packages],
 [AS_HELP_STRING([--enable-byte-compiled-packages],
-                [byte-compile base and recommended packages @<:@yes@:>@])],
+                [byte-compile base and recommended packages @<:@no@:>@])],
 [want_byte_compiled_packages="${enableval}"],
-[want_byte_compiled_packages=yes])
+[want_byte_compiled_packages=no])
 AM_CONDITIONAL(BYTE_COMPILE_PACKAGES,
                [test "x${want_byte_compiled_packages}" = xyes])
 
@@ -873,7 +873,7 @@ AC_CHECK_TYPES([intptr_t, uintptr_t], , , [#ifdef HAVE_INTTYPES_H
 ### *** C compiler.
 
 CFLAGS="${CFLAGS} -fexceptions" # TODO(kmillar): not the right way to do this.
-CXXFLAGS="${CXXFLAGS} -std=c++98 -Wno-attributes"
+CXXFLAGS="${CXXFLAGS} -Wno-attributes"
 
 R_BIGENDIAN
 AC_C_CONST
@@ -938,6 +938,9 @@ R_PROG_CXX_MAKEFRAG
 AC_LANG_PUSH(C++)
 AC_OPENMP
 AC_LANG_POP(C++)
+
+# Require C++ 11
+AX_CXX_COMPILE_STDCXX_11(noext,mandatory)
 
 ### *** ObjC compiler
 
@@ -2262,6 +2265,9 @@ R_SYS_POSIX_LEAPSECONDS
 ## stat times
 gl_STAT_TIME
 
+## LLVM
+AX_LLVM(core mcjit native linker instrumentation ipo vectorize irreader)
+
 ## CXXR provenance tracking.
 if test "${want_provenance_tracking}" = yes; then
   AC_DEFINE(PROVENANCE_TRACKING, 1, [Define this to enable CXXR provenance tracking.])
@@ -2683,6 +2689,7 @@ AC_CONFIG_FILES(
   src/library/utils/Makefile
   src/library/utils/src/Makefile
   src/main/Makefile
+  src/main/jit/Makefile
   src/modules/Makefile
   src/modules/X11/Makefile
   src/modules/internet/Makefile
