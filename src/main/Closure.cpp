@@ -51,6 +51,7 @@
 #include "CXXR/ReturnBailout.hpp"
 #include "CXXR/ReturnException.hpp"
 #include "CXXR/errors.h"
+#include "CXXR/jit/CompiledExpression.hpp"
 
 using namespace std;
 using namespace CXXR;
@@ -72,9 +73,16 @@ namespace CXXR {
 
 Closure::Closure(const PairList* formal_args, RObject* body, Environment* env)
     : FunctionBase(CLOSXP), m_debug(false),
+      m_num_invokes(0), m_compiled_body(0),
       m_matcher(expose(new ArgMatcher(formal_args))),
       m_body(body), m_environment(env)
 {
+}
+
+Closure::~Closure() {
+    if (m_compiled_body) {
+	delete m_compiled_body;
+    }
 }
 
 RObject* Closure::apply(ArgList* arglist, Environment* env,
@@ -106,7 +114,16 @@ RObject* Closure::execute(Environment* env) const
     Environment::ReturnScope returnscope(env);
     Closure::DebugScope debugscope(this); 
     try {
-	{
+	++m_num_invokes;
+	if (m_compiled_body) {
+	    ans = m_compiled_body->evalInEnvironment(env);
+	} else {
+	    if (m_num_invokes >= 100) {
+		// Compile the body, but stay in the interpreter because the
+		// frame hasn't been setup for a compiled function.
+		m_compiled_body
+		    = JIT::CompiledExpression::compileFunctionBody(this);
+	    }
 	    BailoutContext boctxt;
 	    ans = Evaluator::evaluate(m_body, env);
 	}
@@ -136,7 +153,8 @@ RObject* Closure::invoke(Environment* env, const ArgList* arglist,
     if (arglist->status() != ArgList::PROMISED)
 	Rf_error("Internal error: unwrapped arguments to Closure::invoke");
 #endif
-    GCStackRoot<Frame> newframe(CXXR_NEW(ListFrame));
+    GCStackRoot<Frame> newframe(
+	m_compiled_body ? m_compiled_body->createFrame() : CXXR_NEW(ListFrame));
     GCStackRoot<Environment>
 	newenv(CXXR_NEW(Environment(environment(), newframe)));
     // Perform argument matching:
